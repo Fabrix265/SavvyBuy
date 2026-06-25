@@ -11,6 +11,3 @@ dist/
 
 # Datos locales del proyecto
 backend/app/usage.json
-
-# Planeación
-/PLAN.md
