@@ -1,0 +1,2 @@
+class MetroAdapter:
+    pass
