@@ -12,6 +12,11 @@ class SearchRequest(BaseModel):
     categoria: Optional[str] = None
 
 
+class DetailRequest(BaseModel):
+    producto_url: str
+    tienda: str
+
+
 class SearchResponse(BaseModel):
     message: str
     productos: list = []

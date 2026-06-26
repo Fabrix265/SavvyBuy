@@ -11,3 +11,7 @@ dist/
 
 # Datos locales del proyecto
 backend/app/usage.json
+
+# Documentación de agente
+AGENTS.md
+PLAN.md
