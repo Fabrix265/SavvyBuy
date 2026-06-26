@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     ai_provider: str = "openai"
     ai_model: str = "gpt-4o-mini"
     ai_api_key: str = ""
+    ai_base_url: Optional[str] = None
 
     # APIs de búsqueda
     tavily_api_key: Optional[str] = None
