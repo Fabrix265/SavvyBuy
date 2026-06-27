@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import Chat from "../components/Chat"
 import ProductCard from "../components/ProductCard"
 import ProductDetail from "../components/ProductDetail"
@@ -6,6 +6,8 @@ import ProductDetail from "../components/ProductDetail"
 export default function Home() {
   const [productos, setProductos] = useState([])
   const [productoSeleccionado, setProductoSeleccionado] = useState(null)
+
+  const handleClose = useCallback(() => setProductoSeleccionado(null), [])
 
   return (
     <div style={{ display: "flex", height: "100vh", fontFamily: "system-ui, sans-serif" }}>
@@ -25,7 +27,9 @@ export default function Home() {
         ) : (
           <div style={{ padding: "1.5rem", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
             {productos.map((p, i) => (
-              <ProductCard key={i} product={p} onVerDetalle={setProductoSeleccionado} />
+              <div key={i} style={{ contentVisibility: "auto", containIntrinsicSize: "0 320px" }}>
+                <ProductCard product={p} onVerDetalle={setProductoSeleccionado} />
+              </div>
             ))}
           </div>
         )}
@@ -33,7 +37,7 @@ export default function Home() {
         {productoSeleccionado && (
           <ProductDetail
             product={productoSeleccionado}
-            onClose={() => setProductoSeleccionado(null)}
+            onClose={handleClose}
           />
         )}
       </div>

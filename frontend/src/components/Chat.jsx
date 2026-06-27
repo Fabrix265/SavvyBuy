@@ -7,6 +7,7 @@ export default function Chat({ onProductsReady }) {
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState("")
+  const [error, setError] = useState("")
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -20,39 +21,57 @@ export default function Chat({ onProductsReady }) {
     setInput("")
     setLoading(true)
     setStatus("")
+    setError("")
 
-    const response = await fetch("http://localhost:8000/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: newMessages }),
-    })
+    try {
+      const response = await fetch("http://localhost:8000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMessages }),
+      })
 
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ""
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split("\n")
-      buffer = lines.pop()
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue
-        try {
-          const event = JSON.parse(line.replace("data: ", ""))
-          if (event.type === "message") {
-            setMessages(prev => [...prev, { role: "assistant", content: event.content }])
-          } else if (event.type === "status") {
-            setStatus(event.content)
-          } else if (event.type === "done") {
-            setStatus("")
-            setLoading(false)
-            if (event.productos.length > 0) onProductsReady(event.productos)
-          }
-        } catch {}
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "Error del servidor")
+        setError(`Error ${response.status}: ${errText}`)
+        setLoading(false)
+        return
       }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n")
+        buffer = lines.pop()
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue
+          try {
+            const event = JSON.parse(line.replace("data: ", ""))
+            if (event.type === "message") {
+              setMessages(prev => [...prev, { role: "assistant", content: event.content }])
+            } else if (event.type === "status") {
+              setStatus(event.content)
+            } else if (event.type === "error") {
+              setError(event.content)
+            } else if (event.type === "done") {
+              setStatus("")
+              if ((event.productos || []).length > 0) onProductsReady(event.productos)
+            }
+          } catch (e) {
+            console.error("Error parseando SSE:", e, line)
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error en chat:", e)
+      setError("No se pudo conectar con el servidor. Verifica que el backend esté corriendo.")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -74,6 +93,11 @@ export default function Chat({ onProductsReady }) {
           <div style={{ fontSize: "12px", color: "#6B7280", display: "flex", alignItems: "center", gap: "6px" }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#9CA3AF", display: "inline-block" }} />
             {status}
+          </div>
+        )}
+        {error && (
+          <div style={{ fontSize: "12px", color: "#DC2626", background: "#FEF2F2", padding: "8px 12px", borderRadius: "8px", borderLeft: "3px solid #DC2626" }}>
+            {error}
           </div>
         )}
         <div ref={bottomRef} />

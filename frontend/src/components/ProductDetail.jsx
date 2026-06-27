@@ -2,6 +2,7 @@ export default function ProductDetail({ product, onClose }) {
   if (!product) return null
 
   const scoreWidth = `${(product.score_total / 10) * 100}%`
+  const tiendasDisponibles = product.tiendas_fisicas?.filter(t => t.disponible) || []
 
   return (
     <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "white", overflowY: "auto", zIndex: 10, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -87,10 +88,10 @@ export default function ProductDetail({ product, onClose }) {
         </div>
       )}
 
-      {product.tiendas_fisicas?.filter(t => t.disponible).length > 0 && (
+      {tiendasDisponibles.length > 0 && (
         <div>
           <div style={{ fontSize: "11px", fontWeight: 500, color: "#6B7280", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Disponible en tienda física</div>
-          {product.tiendas_fisicas.filter(t => t.disponible).map((t, i) => (
+          {tiendasDisponibles.map((t, i) => (
             <div key={i} style={{ fontSize: "12px", color: "#0F6E56", padding: "3px 0", display: "flex", gap: "6px" }}>
               {t.nombre}{t.direccion ? ` — ${t.direccion}` : ""}
             </div>

@@ -1,4 +1,5 @@
 import json
+import re
 import httpx
 from .base import BaseAIAgent
 from app.models.search import ChatMessage
@@ -41,8 +42,22 @@ class InterviewerAgent(BaseAIAgent):
 
         if response_text.startswith("BUSCAR:"):
             specs_raw = response_text.replace("BUSCAR:", "").strip()
-            specs = json.loads(specs_raw)
-            confirmacion = f"Perfecto, voy a buscar {specs['categoria']} en las tiendas. Dame un momento..."
-            return confirmacion, specs
+            specs = self._parse_specs(specs_raw)
+            if specs:
+                confirmacion = f"Perfecto, voy a buscar {specs['categoria']} en las tiendas. Dame un momento..."
+                return confirmacion, specs
+            return "Déjame intentar buscar con lo que entendí...", None
 
         return response_text, None
+
+    def _parse_specs(self, raw: str) -> dict | None:
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            match = re.search(r'\{.*\}', raw, re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group())
+                except json.JSONDecodeError:
+                    pass
+        return None
