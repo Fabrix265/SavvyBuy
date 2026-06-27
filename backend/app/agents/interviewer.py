@@ -1,4 +1,5 @@
 import json
+import httpx
 from .base import BaseAIAgent
 from app.models.search import ChatMessage
 
@@ -30,6 +31,9 @@ BUSCAR:{"categoria": "freidora de aire", "specs": {"capacidad_litros": "3.5-4.5"
 
 
 class InterviewerAgent(BaseAIAgent):
+
+    def __init__(self, client: httpx.AsyncClient):
+        super().__init__(client)
 
     async def chat(self, messages: list[ChatMessage]) -> tuple[str, dict | None]:
         formatted = [{"role": m.role, "content": m.content} for m in messages]

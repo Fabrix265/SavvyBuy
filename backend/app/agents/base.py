@@ -4,8 +4,8 @@ from app.config import settings
 
 class BaseAIAgent:
 
-    def __init__(self):
-        self.client = httpx.AsyncClient()
+    def __init__(self, client: httpx.AsyncClient):
+        self.client = client
 
     async def _call_ai(self, system_prompt: str, messages: list[dict]) -> str:
         if settings.ai_provider == "openai":

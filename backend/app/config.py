@@ -1,25 +1,30 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    # IA
     ai_provider: str = "openai"
     ai_model: str = "gpt-4o-mini"
     ai_api_key: str = ""
     ai_base_url: Optional[str] = None
 
-    # APIs de búsqueda
     tavily_api_key: Optional[str] = None
     serpapi_api_key: Optional[str] = None
+
+    cors_origins: list[str] = ["http://localhost:5173"]
 
     class Config:
         env_file = ".env"
 
 
-settings = Settings()
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()
 
-# Orden de prioridad del fallback — el sistema las intenta de arriba a abajo
+
+settings = get_settings()
+
 SEARCH_APIS = [
     {
         "name": "tavily",
@@ -38,7 +43,6 @@ SEARCH_APIS = [
     },
 ]
 
-# Tiendas activas — comenta las que no quieras usar
 ACTIVE_STORES = [
     "mercadolibre",
     "falabella",

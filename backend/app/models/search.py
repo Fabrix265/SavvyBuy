@@ -1,15 +1,14 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Literal, Optional
 
 
 class ChatMessage(BaseModel):
-    role: str
+    role: Literal["user", "assistant", "system"]
     content: str
 
 
 class SearchRequest(BaseModel):
     messages: list[ChatMessage]
-    categoria: Optional[str] = None
 
 
 class DetailRequest(BaseModel):

@@ -15,3 +15,6 @@ backend/app/usage.json
 # Documentación de agente
 AGENTS.md
 PLAN.md
+
+# Skills
+.agents/

@@ -1,5 +1,6 @@
 import json
 import re
+import httpx
 from .base import BaseAIAgent
 from app.models.product import Product, ScoredProduct, Opinion
 
@@ -60,6 +61,9 @@ Veredictos posibles exactamente: "Mejor calidad-precio", "Opción premium", "Eco
 
 
 class AnalystAgent(BaseAIAgent):
+
+    def __init__(self, client: httpx.AsyncClient):
+        super().__init__(client)
 
     async def analyze(self, products: list[Product], specs: dict) -> list[ScoredProduct]:
         products_data = [p.model_dump() for p in products]
