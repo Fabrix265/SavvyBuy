@@ -26,7 +26,8 @@ class RipleyAdapter(BaseStoreAdapter):
                 precio_texto = precio_el.text.strip().replace("S/", "").replace(",", "").strip()
                 product_url = link_el["href"]
                 if product_url.startswith("/"):
-                    product_url = "https://ripley.pe" + product_url
+                    product_url = self.base_url + product_url
+
 
                 metodos = []
                 cuotas_el = card.select_one(".catalog-product-item__card")

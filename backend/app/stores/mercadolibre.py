@@ -1,6 +1,6 @@
-import httpx
 from .base import BaseStoreAdapter
 from app.models.product import Product, MetodoPago
+import json
 
 
 class MercadoLibreAdapter(BaseStoreAdapter):
@@ -11,13 +11,10 @@ class MercadoLibreAdapter(BaseStoreAdapter):
         return f"{self.base_url}/sites/MPE/search?q={query}&limit=10"
 
     def parse(self, html: str, source_url: str) -> list[Product]:
-        return []
-
-    async def fetch(self, query: str) -> list[Product]:
-        url = self.build_search_url(query)
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=10)
-            data = response.json()
+        try:
+            data = json.loads(html)
+        except (json.JSONDecodeError, TypeError):
+            return []
 
         products = []
         for item in data.get("results", []):

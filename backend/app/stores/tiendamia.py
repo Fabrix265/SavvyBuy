@@ -23,7 +23,10 @@ class TiendaMiaAdapter(BaseStoreAdapter):
                 if not all([titulo_el, precio_el, link_el]):
                     continue
 
-                precio_texto = precio_el.text.strip().replace("S/", "").replace("USD", "").replace(",", "").strip()
+                precio_raw = precio_el.text.strip()
+                moneda = "USD" if "USD" in precio_raw else "PEN"
+                precio_texto = precio_raw.replace("S/", "").replace("USD", "").replace(",", "").strip()
+
                 product_url = link_el["href"]
                 if product_url.startswith("/"):
                     product_url = self.base_url + product_url
@@ -32,7 +35,7 @@ class TiendaMiaAdapter(BaseStoreAdapter):
                     tienda=self.name,
                     titulo=titulo_el.text.strip(),
                     precio=float(precio_texto),
-                    moneda="PEN",
+                    moneda=moneda, 
                     url=product_url,
                 ))
             except (ValueError, TypeError, KeyError):

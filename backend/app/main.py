@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections.abc import AsyncIterable
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -13,7 +14,6 @@ from app.agents.interviewer import InterviewerAgent
 from app.config import get_settings
 from app.models.product import Product
 from app.models.search import DetailRequest, SearchRequest
-from app.routers.api_router import api_router
 from app.stores import get_active_adapters
 
 
@@ -54,6 +54,11 @@ InterviewerDep = Annotated[InterviewerAgent, Depends(get_interviewer)]
 AnalystDep = Annotated[AnalystAgent, Depends(get_analyst)]
 
 
+def _sse(data: dict, event: str) -> ServerSentEvent:
+    """Serializa el dict a JSON string antes de enviarlo por SSE."""
+    return ServerSentEvent(data=json.dumps(data, ensure_ascii=False), event=event)
+
+
 @app.post("/chat", response_class=EventSourceResponse)
 async def chat(
     request: SearchRequest,
@@ -62,29 +67,20 @@ async def chat(
     client: HttpClientDep,
 ) -> AsyncIterable[ServerSentEvent]:
     response_text, specs = await interviewer.chat(request.messages)
-    yield ServerSentEvent(data={"type": "message", "content": response_text}, event="message")
+    yield _sse({"type": "message", "content": response_text}, "message")
 
     if specs is None:
-        yield ServerSentEvent(data={"type": "done", "productos": []}, event="done")
+        yield _sse({"type": "done", "productos": []}, "done")
         return
 
     adapters = get_active_adapters()
     for adapter in adapters:
-        yield ServerSentEvent(
-            data={"type": "status", "content": f"Buscando en {adapter.name}..."},
-            event="status",
+        yield _sse(
+            {"type": "status", "content": f"Buscando en {adapter.name}..."},
+            "status",
         )
 
-    search_query = f"{specs['categoria']} site:peru OR .pe"
-    try:
-        search_results = await api_router.search(search_query)
-    except Exception as e:
-        yield ServerSentEvent(
-            data={"type": "error", "content": f"Error en la búsqueda: {e}"},
-            event="error",
-        )
-        yield ServerSentEvent(data={"type": "done", "productos": []}, event="done")
-        return
+    search_query = specs["categoria"]
 
     fetch_tasks = [
         _fetch_from_store(adapter, search_query, client)
@@ -97,15 +93,20 @@ async def chat(
         if isinstance(result, list):
             all_products.extend(result)
 
-    yield ServerSentEvent(
-        data={"type": "status", "content": f"Encontré {len(all_products)} productos. Analizando..."},
-        event="status",
+    if not all_products:
+        yield _sse({"type": "error", "content": "No se encontraron productos en las tiendas."}, "error")
+        yield _sse({"type": "done", "productos": []}, "done")
+        return
+
+    yield _sse(
+        {"type": "status", "content": f"Encontré {len(all_products)} productos. Analizando..."},
+        "status",
     )
 
     scored = await analyst.analyze(all_products[:15], specs)
-    yield ServerSentEvent(
-        data={"type": "done", "productos": [p.model_dump() for p in scored]},
-        event="done",
+    yield _sse(
+        {"type": "done", "productos": [p.model_dump() for p in scored]},
+        "done",
     )
 
 
