@@ -1,4 +1,5 @@
 import asyncio
+import re
 from collections.abc import AsyncIterable
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -13,6 +14,7 @@ from app.agents.interviewer import InterviewerAgent
 from app.config import get_settings
 from app.models.product import Product
 from app.models.search import DetailRequest, SearchRequest
+from app.routers.api_router import api_router
 from app.stores import get_active_adapters
 
 
@@ -134,9 +136,49 @@ async def producto_detalle(
         raise HTTPException(status_code=502, detail=f"Error al conectar con la tienda: {e}")
 
 
+async def _search_via_web(query: str, store_name: str, store_url: str) -> list[Product]:
+    try:
+        search_query = f"comprar {query} en {store_name} Peru"
+        results = await api_router.search(search_query)
+        
+        products = []
+        for result in results[:5]:
+            url = result.get("url", "")
+            store_domain = store_url.replace("https://", "").replace("http://", "").split("/")[0]
+            
+            if store_domain in url or store_name.lower() in url.lower():
+                precio = 0.0
+                precio_match = re.search(r'S/\s*([\d,.]+)', result.get("snippet", ""))
+                if precio_match:
+                    precio_texto = precio_match.group(1).replace(",", "").replace(".", "")
+                    if precio_texto:
+                        precio = float(precio_texto)
+                
+                products.append(Product(
+                    tienda=store_name,
+                    titulo=result.get("title", "Sin título"),
+                    precio=precio,
+                    url=url,
+                    descripcion=result.get("snippet", ""),
+                ))
+        return products
+    except Exception as e:
+        print(f"[{store_name}] Búsqueda web falló: {e}")
+        return []
+
+
 async def _fetch_from_store(
     adapter: object, query: str, client: httpx.AsyncClient
 ) -> list[Product]:
+    print(f"[{adapter.name}] Buscando via web...")
+    store_domain = adapter.base_url.replace("https://", "").replace("http://", "").split("/")[0]
+    products = await _search_via_web(query, adapter.name, store_domain)
+    
+    if products:
+        print(f"[{adapter.name}] Encontrados {len(products)} productos via web")
+        return products
+    
+    print(f"[{adapter.name}] Búsqueda web sin resultados, intentando scraping directo...")
     try:
         search_url = adapter.build_search_url(query)
         response = await client.get(
@@ -147,7 +189,7 @@ async def _fetch_from_store(
         )
         return adapter.parse(response.text, search_url)
     except Exception as e:
-        print(f"[{adapter.name}] Error: {e}")
+        print(f"[{adapter.name}] Error en scraping: {e}")
         return []
 
 

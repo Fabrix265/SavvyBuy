@@ -1,6 +1,8 @@
 from .base import BaseStoreAdapter
 from app.models.product import Product, MetodoPago
+from bs4 import BeautifulSoup
 import json
+import re
 
 
 class MercadoLibreAdapter(BaseStoreAdapter):
@@ -9,6 +11,17 @@ class MercadoLibreAdapter(BaseStoreAdapter):
 
     def build_search_url(self, query: str) -> str:
         return f"{self.base_url}/sites/MPE/search?q={query}&limit=10"
+
+    def get_headers(self) -> dict:
+        return {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/125.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json",
+            "Accept-Language": "es-PE,es;q=0.9",
+        }
 
     def parse(self, html: str, source_url: str) -> list[Product]:
         try:
