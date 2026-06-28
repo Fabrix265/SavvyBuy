@@ -1,5 +1,4 @@
 import asyncio
-import json
 from collections.abc import AsyncIterable
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -55,8 +54,7 @@ AnalystDep = Annotated[AnalystAgent, Depends(get_analyst)]
 
 
 def _sse(data: dict, event: str) -> ServerSentEvent:
-    """Serializa el dict a JSON string antes de enviarlo por SSE."""
-    return ServerSentEvent(data=json.dumps(data, ensure_ascii=False), event=event)
+    return ServerSentEvent(data=data, event=event)
 
 
 @app.post("/chat", response_class=EventSourceResponse)

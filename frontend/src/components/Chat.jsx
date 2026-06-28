@@ -68,7 +68,6 @@ export default function Chat({ onProductsReady }) {
         }
       }
     } catch (e) {
-      console.error("Error en chat:", e)
       setError("No se pudo conectar con el servidor. Verifica que el backend esté corriendo.")
     } finally {
       setLoading(false)
@@ -76,49 +75,141 @@ export default function Chat({ onProductsReady }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+
+      {/* Mensajes */}
+      <div style={{
+        flex: 1, overflowY: "auto",
+        padding: "16px 16px 8px",
+        display: "flex", flexDirection: "column", gap: 10,
+      }}>
         {messages.map((m, i) => (
           <div key={i} style={{
             alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-            background: m.role === "user" ? "#534AB7" : "#F3F4F6",
-            color: m.role === "user" ? "white" : "#111827",
-            padding: "0.75rem 1rem", borderRadius: "12px", maxWidth: "78%",
-            fontSize: "14px", lineHeight: "1.6"
+            maxWidth: "82%",
           }}>
-            {m.content}
+            <div style={{
+              background: m.role === "user" ? "var(--brand)" : "var(--gray-100)",
+              color: m.role === "user" ? "white" : "var(--gray-900)",
+              padding: "10px 14px",
+              borderRadius: m.role === "user"
+                ? "14px 14px 4px 14px"
+                : "14px 14px 14px 4px",
+              fontSize: 13.5,
+              lineHeight: 1.6,
+              boxShadow: "var(--shadow-sm)",
+            }}>
+              {m.content}
+            </div>
           </div>
         ))}
+
+        {/* Estado de búsqueda */}
         {status && (
-          <div style={{ fontSize: "12px", color: "#6B7280", display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#9CA3AF", display: "inline-block" }} />
+          <div style={{
+            alignSelf: "flex-start",
+            display: "flex", alignItems: "center", gap: 8,
+            background: "var(--brand-light)",
+            border: "1px solid #C7D2FE",
+            padding: "8px 12px",
+            borderRadius: "var(--radius-md)",
+            fontSize: 12.5,
+            color: "var(--brand-dark)",
+          }}>
+            <LoadingDots />
             {status}
           </div>
         )}
+
+        {/* Error */}
         {error && (
-          <div style={{ fontSize: "12px", color: "#DC2626", background: "#FEF2F2", padding: "8px 12px", borderRadius: "8px", borderLeft: "3px solid #DC2626" }}>
+          <div style={{
+            fontSize: 12.5,
+            color: "var(--red)",
+            background: "var(--red-light)",
+            padding: "8px 12px",
+            borderRadius: "var(--radius-md)",
+            borderLeft: "3px solid var(--red)",
+          }}>
             {error}
           </div>
         )}
+
         <div ref={bottomRef} />
       </div>
-      <div style={{ display: "flex", gap: "0.5rem", padding: "1rem", borderTop: "1px solid #E5E7EB" }}>
+
+      {/* Input */}
+      <div style={{
+        padding: "12px 14px",
+        borderTop: "1px solid var(--gray-100)",
+        display: "flex",
+        gap: 8,
+        background: "white",
+      }}>
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === "Enter" && send()}
-          placeholder="Escribe aquí..."
+          placeholder="Ej: busco una freidora de aire..."
           disabled={loading}
-          style={{ flex: 1, padding: "0.75rem", borderRadius: "8px", border: "1px solid #D1D5DB", fontSize: "14px" }}
+          style={{
+            flex: 1,
+            padding: "10px 14px",
+            borderRadius: "var(--radius-md)",
+            border: "1.5px solid var(--gray-200)",
+            fontSize: 13.5,
+            color: "var(--gray-900)",
+            background: loading ? "var(--gray-50)" : "white",
+            outline: "none",
+            transition: "border-color .15s",
+          }}
+          onFocus={e => e.target.style.borderColor = "var(--brand)"}
+          onBlur={e => e.target.style.borderColor = "var(--gray-200)"}
         />
         <button
           onClick={send}
           disabled={loading}
-          style={{ padding: "0.75rem 1.25rem", background: "#534AB7", color: "white", border: "none", borderRadius: "8px", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}
+          style={{
+            padding: "10px 18px",
+            background: loading ? "var(--gray-200)" : "var(--brand)",
+            color: loading ? "var(--gray-400)" : "white",
+            border: "none",
+            borderRadius: "var(--radius-md)",
+            cursor: loading ? "not-allowed" : "pointer",
+            fontSize: 13.5,
+            fontWeight: 500,
+            transition: "background .15s, transform .1s",
+            fontFamily: "inherit",
+          }}
+          onMouseEnter={e => { if (!loading) e.target.style.background = "var(--brand-dark)" }}
+          onMouseLeave={e => { if (!loading) e.target.style.background = "var(--brand)" }}
         >
-          {loading ? "..." : "Enviar"}
+          {loading ? "···" : "Enviar"}
         </button>
       </div>
     </div>
+  )
+}
+
+function LoadingDots() {
+  return (
+    <span style={{ display: "flex", gap: 3 }}>
+      {[0, 1, 2].map(i => (
+        <span key={i} style={{
+          width: 5, height: 5,
+          borderRadius: "50%",
+          background: "var(--brand)",
+          display: "inline-block",
+          animation: "bounce 1.2s ease-in-out infinite",
+          animationDelay: `${i * 0.2}s`,
+        }} />
+      ))}
+      <style>{`
+        @keyframes bounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: .4; }
+          40%            { transform: translateY(-4px); opacity: 1; }
+        }
+      `}</style>
+    </span>
   )
 }

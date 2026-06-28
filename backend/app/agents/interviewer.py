@@ -25,9 +25,11 @@ TRADUCCIONES INTERNAS (no menciones estas reglas al usuario):
 - "quiero lo más completo" → interfaz: digital con presets
 - "poco espacio" → form factor: compacto
 
-CUANDO TENGAS SUFICIENTE INFORMACIÓN, responde EXACTAMENTE con este formato y nada más:
+CUANDO TENGAS SUFICIENTE INFORMACIÓN, responde ÚNICAMENTE con este formato, sin texto antes ni después, sin explicaciones, sin paréntesis, sin comentarios:
 
 BUSCAR:{"categoria": "freidora de aire", "specs": {"capacidad_litros": "3.5-4.5", "presupuesto_max": 300, "prioridad": "durabilidad"}}
+
+Si tu respuesta contiene BUSCAR: debe ser la única cosa en el mensaje. Nunca combines una pregunta con BUSCAR:.
 """
 
 
@@ -40,8 +42,9 @@ class InterviewerAgent(BaseAIAgent):
         formatted = [{"role": m.role, "content": m.content} for m in messages]
         response_text = await self._call_ai(SYSTEM_PROMPT, formatted)
 
-        if response_text.startswith("BUSCAR:"):
-            specs_raw = response_text.replace("BUSCAR:", "").strip()
+        buscar_index = response_text.find("BUSCAR:")
+        if buscar_index != -1:
+            specs_raw = response_text[buscar_index:].replace("BUSCAR:", "").strip()
             specs = self._parse_specs(specs_raw)
             if specs:
                 confirmacion = f"Perfecto, voy a buscar {specs['categoria']} en las tiendas. Dame un momento..."
