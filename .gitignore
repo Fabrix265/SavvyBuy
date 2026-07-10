@@ -1,0 +1,20 @@
+# Entorno
+.env
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Frontend
+node_modules/
+dist/
+
+# Datos locales del proyecto
+backend/app/usage.json
+
+# Documentación de agente
+AGENTS.md
+PLAN.md
+
+# Skills
+.agents/
