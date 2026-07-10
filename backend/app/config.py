@@ -44,12 +44,13 @@ SEARCH_APIS = [
 ]
 
 ACTIVE_STORES = [
-    "mercadolibre",
     "falabella",
-    "ripley",
-    "oechsle",
     "sodimac",
     "metro",
-    "tiendamia",
     "radioshack",
+    # Deshabilitadas temporalmente porque no recolectan datos reales:
+    # "mercadolibre",  # su API pide credenciales registradas (403 sin auth)
+    # "ripley",        # bloqueo anti-bot (fingerprint/redirect)
+    # "oechsle",       # carga los resultados con JavaScript, no aparecen en el HTML inicial
+    # "tiendamia",     # bloqueo Cloudflare
 ]

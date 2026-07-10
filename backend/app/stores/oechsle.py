@@ -9,7 +9,7 @@ class OechsleAdapter(BaseStoreAdapter):
     base_url = "https://www.oechsle.pe"
 
     def build_search_url(self, query: str) -> str:
-        return f"{self.base_url}/search?q={query.replace(' ', '+')}"
+        return f"{self.base_url}/search/?query={query.replace(' ', '+')}"
 
     def parse(self, html: str, source_url: str) -> list[Product]:
         soup = BeautifulSoup(html, "html.parser")

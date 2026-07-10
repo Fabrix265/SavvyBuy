@@ -1,5 +1,5 @@
-import httpx
-from bs4 import BeautifulSoup
+import json
+import re
 from .base import BaseStoreAdapter
 from app.models.product import Product, MetodoPago
 
@@ -7,37 +7,62 @@ from app.models.product import Product, MetodoPago
 class SodimacAdapter(BaseStoreAdapter):
     name = "Sodimac"
     base_url = "https://www.sodimac.com.pe"
+    store_path = "/sodimac-pe"
 
     def build_search_url(self, query: str) -> str:
-        return f"{self.base_url}/s/{query.replace(' ', '+')}"
+        return f"{self.base_url}{self.store_path}/buscar?Ntt={query.replace(' ', '+')}"
+
+    def _extract_precio(self, prices: list[dict]) -> float:
+        preferidos = ["internetPrice", "eventPrice", "cmrPrice"]
+        por_tipo = {p["type"]: p for p in prices if p.get("price")}
+
+        for tipo in preferidos:
+            if tipo in por_tipo:
+                return float(por_tipo[tipo]["price"][0])
+
+        no_tachados = [p for p in prices if p.get("price") and not p.get("crossed")]
+        if no_tachados:
+            return float(min(no_tachados, key=lambda p: float(p["price"][0]))["price"][0])
+
+        return 0.0
 
     def parse(self, html: str, source_url: str) -> list[Product]:
-        soup = BeautifulSoup(html, "html.parser")
-        products = []
+        match = re.search(
+            r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
+            html,
+            re.S,
+        )
+        if not match:
+            return []
 
-        for card in soup.select(".pod")[:10]:
+        try:
+            data = json.loads(match.group(1))
+            results = data["props"]["pageProps"]["results"]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            return []
+
+        products = []
+        for item in results[:15]:
             try:
-                titulo_el = card.select_one(".pod-title")
-                precio_el = card.select_one(".pod-subTitle--discount")
-                link_el = card.select_one("a")
-                if not all([titulo_el, precio_el, link_el]):
+                titulo = item.get("displayName")
+                url = item.get("url")
+                prices = item.get("prices", [])
+                if not titulo or not url or not prices:
                     continue
 
-                precio_texto = precio_el.text.strip().replace("S/", "").replace(",", "").strip()
-                product_url = link_el["href"]
-                if product_url.startswith("/"):
-                    product_url = self.base_url + product_url
+                precio = self._extract_precio(prices)
+                if precio <= 0:
+                    continue
 
                 metodos = []
-                cuotas_el = card.select_one(".cuotas")
-                if cuotas_el:
-                    metodos.append(MetodoPago(nombre="Tarjeta", detalle=cuotas_el.text.strip()))
+                if item.get("brand"):
+                    metodos.append(MetodoPago(nombre="Marca", detalle=item["brand"]))
 
                 products.append(Product(
                     tienda=self.name,
-                    titulo=titulo_el.text.strip(),
-                    precio=float(precio_texto),
-                    url=product_url,
+                    titulo=titulo,
+                    precio=precio,
+                    url=url,
                     metodos_pago=metodos,
                 ))
             except (ValueError, TypeError, KeyError):

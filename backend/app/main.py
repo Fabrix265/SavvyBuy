@@ -3,6 +3,7 @@ import re
 from collections.abc import AsyncIterable
 from contextlib import asynccontextmanager
 from typing import Annotated
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -57,6 +58,26 @@ AnalystDep = Annotated[AnalystAgent, Depends(get_analyst)]
 
 def _sse(data: dict, event: str) -> ServerSentEvent:
     return ServerSentEvent(data=data, event=event)
+
+
+NON_PRODUCT_PATH = re.compile(
+    r"(^/?$|/search|/buscar|/busqueda|/s/|/category|/categoria|/c/|/blog|"
+    r"/ayuda|/help|/login|/cuenta|/account|/cart|/carrito|/wishlist)",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_product_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    path = parsed.path.strip("/")
+    if not path:
+        return False
+    if NON_PRODUCT_PATH.search(parsed.path):
+        return False
+    return True
 
 
 @app.post("/chat", response_class=EventSourceResponse)
@@ -140,27 +161,36 @@ async def _search_via_web(query: str, store_name: str, store_url: str) -> list[P
     try:
         search_query = f"comprar {query} en {store_name} Peru"
         results = await api_router.search(search_query)
-        
+
         products = []
         for result in results[:5]:
             url = result.get("url", "")
             store_domain = store_url.replace("https://", "").replace("http://", "").split("/")[0]
-            
-            if store_domain in url or store_name.lower() in url.lower():
-                precio = 0.0
-                precio_match = re.search(r'S/\s*([\d,.]+)', result.get("snippet", ""))
-                if precio_match:
-                    precio_texto = precio_match.group(1).replace(",", "").replace(".", "")
-                    if precio_texto:
-                        precio = float(precio_texto)
-                
-                products.append(Product(
-                    tienda=store_name,
-                    titulo=result.get("title", "Sin título"),
-                    precio=precio,
-                    url=url,
-                    descripcion=result.get("snippet", ""),
-                ))
+
+            if store_domain not in url and store_name.lower() not in url.lower():
+                continue
+            if not _looks_like_product_url(url):
+                continue
+
+            precio = 0.0
+            precio_match = re.search(r'S/\s*([\d.,]+)', result.get("snippet", ""))
+            if precio_match:
+                precio_texto = precio_match.group(1).replace(",", "")
+                try:
+                    precio = float(precio_texto)
+                except ValueError:
+                    precio = 0.0
+
+            if precio <= 0:
+                continue
+
+            products.append(Product(
+                tienda=store_name,
+                titulo=result.get("title", "Sin título"),
+                precio=precio,
+                url=url,
+                descripcion=result.get("snippet", ""),
+            ))
         return products
     except Exception as e:
         print(f"[{store_name}] Búsqueda web falló: {e}")
@@ -170,15 +200,7 @@ async def _search_via_web(query: str, store_name: str, store_url: str) -> list[P
 async def _fetch_from_store(
     adapter: object, query: str, client: httpx.AsyncClient
 ) -> list[Product]:
-    print(f"[{adapter.name}] Buscando via web...")
-    store_domain = adapter.base_url.replace("https://", "").replace("http://", "").split("/")[0]
-    products = await _search_via_web(query, adapter.name, store_domain)
-    
-    if products:
-        print(f"[{adapter.name}] Encontrados {len(products)} productos via web")
-        return products
-    
-    print(f"[{adapter.name}] Búsqueda web sin resultados, intentando scraping directo...")
+    print(f"[{adapter.name}] Buscando con scraping directo...")
     try:
         search_url = adapter.build_search_url(query)
         response = await client.get(
@@ -187,10 +209,18 @@ async def _fetch_from_store(
             timeout=15,
             follow_redirects=True,
         )
-        return adapter.parse(response.text, search_url)
+        products = adapter.parse(response.text, search_url)
     except Exception as e:
         print(f"[{adapter.name}] Error en scraping: {e}")
-        return []
+        products = []
+
+    if products:
+        print(f"[{adapter.name}] Encontrados {len(products)} productos via scraping")
+        return products
+
+    print(f"[{adapter.name}] Scraping sin resultados, intentando búsqueda web...")
+    store_domain = adapter.base_url.replace("https://", "").replace("http://", "").split("/")[0]
+    return await _search_via_web(query, adapter.name, store_domain)
 
 
 @app.get("/health")
